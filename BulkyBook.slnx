@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="BulkyBook.Business/BulkyBook.Business.csproj" />
+  <Project Path="BulkyBook.DataAccess/BulkyBook.DataAccess.csproj" />
+  <Project Path="BulkyBook.Models/BulkyBook.Models.csproj" />
+  <Project Path="BulkyBook.Utility/BulkyBook.Utility.csproj" />
+  <Project Path="BulkyBookWeb/BulkyBookWeb.csproj" />
+</Solution>
