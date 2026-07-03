@@ -91,14 +91,11 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
             { 
                 var categories = await _categoryService.GetAllCategoriesAsync();
 
-                productVM = new()
+                productVM.CategoryList = categories.Select(c => new SelectListItem
                 {
-                    CategoryList = categories.Select(c => new SelectListItem
-                    {
-                        Text = c.Name,
-                        Value = c.Id.ToString()
-                     })
-                };
+                    Text = c.Name,
+                    Value = c.Id.ToString()
+                });
                     return View(productVM);
             }
         }
