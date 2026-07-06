@@ -1,5 +1,5 @@
 ﻿using BulkyBook.Models;
-using BulkyBookWeb.Data;
+using BulkyBookWeb.DataAccess.Data;
 using Microsoft.AspNetCore.Mvc;
 using BulkyBook.Business.Services.IServices;
 

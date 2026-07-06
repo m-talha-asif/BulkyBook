@@ -4,7 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using BulkyBook.Business.Services.IServices;
 using BulkyBook.Models;
-using BulkyBookWeb.Data;
+using BulkyBookWeb.DataAccess.Data;
 
 namespace BulkyBook.Business.Services
 {
