@@ -2,13 +2,16 @@
 using BulkyBook.Business.Services.IServices;
 using BulkyBook.Models;
 using BulkyBook.Models.ViewModels;
+using BulkyBook.Utility;
 using BulkyBookWeb.DataAccess.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace BulkyBookWeb.Areas.Admin.Controllers
 {
     [Area("Admin")]
+    [Authorize(Roles = SD.RoleAdmin)]
 
     public class ProductController : Controller
     {
@@ -21,10 +24,13 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
             _categoryService = categoryService;
             _webHostEnvironment = webHostEnvironment;
         }
+
+        [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
             return View();
         }
+
         public async Task<IActionResult> Upsert(int? id)
         {
             var categories = await _categoryService.GetAllCategoriesAsync();
@@ -101,6 +107,7 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
         }
 
         #region API CALLS
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll()
         {
             var products = await _productService.GetAllProductsAsync(true);
@@ -124,7 +131,7 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
             //delete product image if exists
             if (!string.IsNullOrEmpty(productToBeDeleted.ImageUrl))
             {
-                var imagePath = Path.Combine(_webHostEnvironment.WebRootPath, productToBeDeleted.ImageUrl.TrimStart('\\','/'));
+                var imagePath = Path.Combine(_webHostEnvironment.WebRootPath, productToBeDeleted.ImageUrl.TrimStart('\\', '/'));
 
                 if (System.IO.File.Exists(imagePath))
                 {
