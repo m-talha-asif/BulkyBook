@@ -1,6 +1,9 @@
 using BulkyBook.Business.Services.IServices;
+using BulkyBook.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
+using System.Security.Claims;
 
 namespace BulkyBookWeb.Areas.Customer.Controllers
 {
@@ -8,10 +11,12 @@ namespace BulkyBookWeb.Areas.Customer.Controllers
     public class HomeController : Controller
     {
         private readonly IProductService _productService;
+        private readonly IShoppingCartService _shoppingCartService;
 
-        public HomeController(IProductService productService)
+        public HomeController(IProductService productService, IShoppingCartService shoppingCartService)
         {
             _productService = productService;
+            _shoppingCartService = shoppingCartService;
         }
 
         public async Task<IActionResult> Index()
@@ -22,12 +27,34 @@ namespace BulkyBookWeb.Areas.Customer.Controllers
         public async Task<IActionResult> Details(int productId)
         {
             var product = await _productService.GetProductByIdAsync(productId, includeCategory: true);
-            return View(product);
+            if(product == null)
+            {
+                return NotFound();
+            }
+            ShoppingCart cart = new()
+            {
+                Product = product,
+                Count = 1,
+                ProductId = productId
+            };
+            return View(cart);
         }
-
-        public IActionResult Privacy()
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> Details(ShoppingCart shoppingCart)
         {
-            return View();
-        }  
+            var claimsIdentity = (ClaimsIdentity)User.Identity;
+            var userId = claimsIdentity?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            shoppingCart.ApplicationUserId = userId;
+            await _shoppingCartService.AddToCartAsync(shoppingCart);
+
+            return RedirectToAction("Details", new { productId = shoppingCart.ProductId });
+        }
     }
 }

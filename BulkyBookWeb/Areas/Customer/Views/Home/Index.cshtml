@@ -36,7 +36,7 @@
                         <div class="card-body">
                             <span class="badge bg-secondary mb-2">@product.Category.Name</span>
                             <h6 class="card-title fw-semibold mb-2" style="min-height: 2.5rem;">
-                                <a href="#" class="text-decoration-none text-dark">
+                                <a asp-action="Details" asp-route-productId="@product.Id" class="text-decoration-none text-dark">
                                     @product.Title
                                 </a>
                             </h6>

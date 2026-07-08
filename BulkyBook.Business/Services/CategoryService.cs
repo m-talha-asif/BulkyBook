@@ -15,6 +15,7 @@ namespace BulkyBook.Business.Services
         {
             _context = context;
         }
+
         public async Task<IEnumerable<Category>> GetAllCategoriesAsync()
         {
             return await _context.Categories.ToListAsync();
