@@ -56,7 +56,7 @@ namespace BulkyBookWeb.Areas.Customer.Controllers
 
             TempData["success"] = "Item added to cart successfully!";
 
-            return RedirectToAction("Details", new { productId = shoppingCart.ProductId });
+            return RedirectToAction("Index");
         }
     }
 }
