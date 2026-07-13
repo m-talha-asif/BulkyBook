@@ -10,7 +10,7 @@ using System.Text;
 namespace BulkyBook.Business.Services
 {
     public class OrderService : IOrderService
-    {
+    { 
         private readonly ApplicationDbContext _db;
 
         public OrderService(ApplicationDbContext db)
