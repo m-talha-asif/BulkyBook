@@ -18,6 +18,7 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
             _categoryService = categoryService;
         }
 
+        [AllowAnonymous]
         public async Task<IActionResult> Index()
         {
             var categories = await _categoryService.GetAllCategoriesAsync();

@@ -1,4 +1,5 @@
-﻿<div class="container">
+﻿@using BulkyBook.Utility
+<div class="container">
     <div class="row justify-content-center mt-5">
         <div class="col-md-6 col-lg-5">
             <div class="card shadow-sm border overflow-hidden">
@@ -13,9 +14,18 @@
                         You do not have permission to access this resource.
                     </p>
                     <!-- TODO: Add Link -->
-                    <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="btn btn-accent">
-                        <i class="bi bi-house me-2"></i>Go to Home
-                    </a>
+                    @if (User.IsInRole(SD.RoleAdmin) || User.IsInRole(SD.RoleEmployee))
+                    {
+                        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="btn btn-accent">
+                            <i class="bi bi-house me-2"></i>Go to Home
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-area="Customer" asp-controller="Home" asp-action="Index" class="btn btn-accent">
+                            <i class="bi bi-house me-2"></i>Go to Home
+                        </a>
+                    }
                 </div>
             </div>
         </div>

@@ -1,4 +1,6 @@
-﻿using BulkyBook.Models;
+﻿using BulkyBook.Business.Services;
+using BulkyBook.Business.Services.IServices;
+using BulkyBook.Models;
 using BulkyBook.Models.ViewModels;
 using BulkyBook.Utility;
 using Microsoft.AspNetCore.Identity;
@@ -13,14 +15,17 @@ namespace BulkyBookWeb.Areas.Identity.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IShoppingCartService _shoppingCartService;
 
         public AccountController(UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            RoleManager<IdentityRole> roleManager)
+            RoleManager<IdentityRole> roleManager,
+            IShoppingCartService shoppingCartService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _roleManager = roleManager;
+            _shoppingCartService = shoppingCartService;
         }
 
         public IActionResult Login(string? returnUrl = null)
@@ -40,6 +45,10 @@ namespace BulkyBookWeb.Areas.Identity.Controllers
                     if(!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     {
                         return Redirect(returnUrl);
+                    }
+                    if(User.IsInRole(SD.RoleAdmin) || User.IsInRole(SD.RoleEmployee))
+                    {
+                        return RedirectToAction("Index", "Dashboard", new { area = "Admin" });
                     }
 
                     return RedirectToAction("Index", "Home", new { area = "Customer" });
@@ -101,7 +110,6 @@ namespace BulkyBookWeb.Areas.Identity.Controllers
                     }
 
                     await _signInManager.SignInAsync(user, isPersistent: false);
-
                     if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     {
                         return Redirect(returnUrl);
@@ -125,6 +133,7 @@ namespace BulkyBookWeb.Areas.Identity.Controllers
         public async Task<IActionResult> Logout()
         {
             await _signInManager.SignOutAsync();
+            HttpContext.Session.SetInt32(SD.SessionCart, 0);
             return RedirectToAction("Index", "Home", new { area = "Customer" });
         }
     }
