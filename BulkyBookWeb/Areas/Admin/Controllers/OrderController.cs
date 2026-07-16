@@ -7,6 +7,7 @@ using BulkyBookWeb.DataAccess.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Stripe;
 using System.Security.Claims;
 
 namespace BulkyBookWeb.Areas.Admin.Controllers
@@ -81,7 +82,7 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
             switch (status)
             {
                 case SD.StatusProcessing:
-                    await _orderService.UpdateOrderStatusAsync(orderHeader.Id, status);
+                    await _orderService.UpdateOrderStatusAsync(OrderHeader.Id, status);
                     successMessage = "Order processing started successfully.";
                 break;
 
@@ -90,7 +91,7 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
                     if(string.IsNullOrEmpty(OrderHeader.Carrier) || string.IsNullOrEmpty(OrderHeader.TrackingNumber))
                     {
                         TempData["error"] = "Carrier and Tracking Number are required to mark the order as shipped.";
-                        return RedirectToAction(nameof(Details), new { orderId = orderHeader.Id });
+                        return RedirectToAction(nameof(Details), new { orderId = OrderHeader.Id });
                     }
 
                     await _orderService.UpdateOrderStatusAsync(
@@ -100,18 +101,37 @@ namespace BulkyBookWeb.Areas.Admin.Controllers
                 break;
 
                 case SD.StatusCancelled:
-                    await _orderService.UpdateOrderStatusAsync(orderHeader.Id, status);
-                    successMessage = "Order cancelled successfully.";
-                break;
-
                 case SD.StatusRefunded:
-                    await _orderService.UpdateOrderStatusAsync(orderHeader.Id, status);
-                    successMessage = "Order refunded successfully.";
-                break;
+
+                    try
+                    {
+                        bool refundIssued = await _orderService.CancelOrderWithRefundAsync(OrderHeader.Id);
+
+                        if (refundIssued)
+                        {
+                            successMessage = "Order cancelled and refund issued successfully.";
+
+                        }
+                        else
+                        {
+                            successMessage = "Order cancelled successfully, but refund could not be issued.";
+                        }
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        TempData["error"] = $"Error cancelling order: {ex.Message}";
+                        return RedirectToAction(nameof(Details), new { orderId = OrderHeader.Id });
+                    }
+                    catch(StripeException ex)
+                    {
+                        TempData["error"] = $"Order cancelled but refund failed: {ex.Message}. Please process refund manually in Stripe Dashboard";
+                        return RedirectToAction(nameof(Details), new { orderId = OrderHeader.Id });
+                    }
+                    break;
 
                 default:
                     TempData["error"] = "Invalid order status.";
-                    return RedirectToAction(nameof(Details), new { orderId = orderHeader.Id });
+                    return RedirectToAction(nameof(Details), new { orderId = OrderHeader.Id });
             }
 
             TempData["success"] = successMessage;

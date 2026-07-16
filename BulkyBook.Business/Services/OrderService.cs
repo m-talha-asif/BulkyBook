@@ -1,11 +1,16 @@
 ﻿using BulkyBook.Business.Services.IServices;
 using BulkyBook.Models;
+using BulkyBook.Models.ViewModels;
 using BulkyBook.Utility;
 using BulkyBookWeb.DataAccess.Data;
 using Microsoft.EntityFrameworkCore;
+using Stripe;
+using Stripe.Checkout;
+using Stripe.Climate;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace BulkyBook.Business.Services
 {
@@ -43,7 +48,14 @@ namespace BulkyBook.Business.Services
             }
             if (!string.IsNullOrWhiteSpace(status) && status.ToLower() != "all")
             {
-                query = query.Where(u => u.OrderStatus.ToLower() == status.ToLower());
+                if (status.ToLower() == "cancelled")
+                {
+                    query = query.Where(u => u.OrderStatus == SD.StatusCancelled || u.OrderStatus == SD.StatusRefunded);
+                }
+                else
+                {
+                    query = query.Where(u => u.OrderStatus.ToLower() == status.ToLower());
+                }
             }
 
             return await query.ToListAsync();
@@ -96,6 +108,144 @@ namespace BulkyBook.Business.Services
             }
 
             await _db.SaveChangesAsync();
+        }
+
+        public async Task UpdateStripePaymentAsync(int orderId, string sessionId, string paymentIntentId)
+        {
+            var order = await _db.OrderHeaders.FindAsync(orderId);
+
+            if (order == null)
+            {
+                throw new KeyNotFoundException($"Order {orderId} not found");
+            }
+            if (!string.IsNullOrEmpty(sessionId))
+            {
+                order.SessionId = sessionId;
+            }
+            if (!string.IsNullOrEmpty(paymentIntentId))
+            {
+                order.PaymentIntentId = paymentIntentId;
+            }
+
+            await _db.SaveChangesAsync();
+        }
+
+        public async Task<bool> CancelOrderWithRefundAsync(int orderId)
+        {
+            var order=await _db.OrderHeaders.FindAsync(orderId);
+
+            if(order == null)
+            {
+                throw new KeyNotFoundException($"Order {orderId} not found");
+            }
+
+            if(order.OrderStatus == SD.StatusShipped)
+            {
+                throw new InvalidOperationException($"Order {orderId} has already been shipped and cannot be canceled.");
+            }
+
+            if (order.OrderStatus == SD.StatusCancelled || order.OrderStatus == SD.StatusRefunded)
+            {
+                throw new InvalidOperationException($"Order {orderId} has already been canceled.");
+            }
+
+            bool refundIssued = false;
+
+            if(!string.IsNullOrEmpty(order.PaymentIntentId)&&(order.OrderStatus == SD.StatusApproved || order.OrderStatus == SD.StatusProcessing))
+            {
+                try
+                {
+                    var options = new RefundCreateOptions { PaymentIntent = order.PaymentIntentId, Reason = RefundReasons.RequestedByCustomer };
+                    var service = new RefundService();
+                    Refund refund = service.Create(options);
+
+                    if (refund.Status == "succeeded" || refund.Status == "pending")
+                    {
+                        refundIssued = true;
+                        order.OrderStatus = SD.StatusRefunded;
+                    }
+
+                }
+                catch(StripeException ex)
+                {
+                    order.OrderStatus = SD.StatusCancelled;
+                    await _db.SaveChangesAsync();
+                    throw new InvalidOperationException($"Failed to issue refund for order {orderId}. Error: {ex.Message}");
+                }
+            }
+            else
+            {
+                order.OrderStatus = SD.StatusCancelled;
+            }
+
+            await _db.SaveChangesAsync();
+            return refundIssued;
+        }
+
+        public async Task<string> CreateStripeCheckoutSessionAsync(OrderHeader orderHeader, IEnumerable<ShoppingCart> cartItems, string domain)
+        {
+            if(orderHeader == null)
+            {
+                throw new ArgumentNullException(nameof(orderHeader));
+            }
+
+            if(cartItems == null || !cartItems.Any())
+            {
+                throw new ArgumentException("Cart items cannot be null or empty", nameof(cartItems));
+            }
+
+            var options = new Stripe.Checkout.SessionCreateOptions
+            {
+                SuccessUrl = domain + $"customer/cart/OrderConfirmation?id={orderHeader.Id}",
+                CancelUrl = domain + "customer/cart/index",
+                LineItems = new List<SessionLineItemOptions>(),
+
+                Mode = "payment",
+
+                Metadata = new Dictionary<string, string>
+                    {
+                        { "OrderId", orderHeader.Id.ToString() }
+                    }
+            };
+
+            foreach (var item in cartItems)
+            {
+                var sessionLineItem = new SessionLineItemOptions
+                {
+                    PriceData = new SessionLineItemPriceDataOptions
+                    {
+                        UnitAmount = (long)(item.Price * 100), // Convert to cents
+                        Currency = "pkr",
+                        ProductData = new SessionLineItemPriceDataProductDataOptions
+                        {
+                            Name = item.Product.Title,
+                        },
+                    },
+                    Quantity = item.Count
+                };
+                options.LineItems.Add(sessionLineItem);
+            }
+            var service = new SessionService();
+            Session session = service.Create(options);
+            await UpdateStripePaymentAsync(orderHeader.Id, session.Id, session.PaymentIntentId);
+            return session.Url;
+        }
+
+        public async Task<bool> VerifyStripePaymentAsync(OrderHeader orderHeader)
+        {
+            var service = new SessionService();
+            Session session = service.Get(orderHeader.SessionId);
+
+            if (session.PaymentStatus.ToLower() == "paid")
+            {
+                await UpdateStripePaymentAsync(orderHeader.Id, session.Id, session.PaymentIntentId);
+                await UpdateOrderStatusAsync(orderHeader.Id, SD.StatusApproved);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 }

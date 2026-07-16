@@ -1,5 +1,6 @@
 using BulkyBook.Business.Services;
 using BulkyBook.Business.Services.IServices;
+using BulkyBook.DataAccess.DbInitializer;
 using BulkyBook.Models;
 using BulkyBookWeb.DataAccess.Data;
 using Microsoft.AspNetCore.Identity;
@@ -31,6 +32,7 @@ builder.Services.AddScoped<IShoppingCartService, ShoppingCartService>();
 builder.Services.AddScoped<IApplicationUserService, ApplicationUserService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -58,12 +60,16 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+Stripe.StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapStaticAssets();
+
+await SeedDatabase();
 
 app.MapControllerRoute(
     name: "MyArea",
@@ -77,3 +83,12 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+async Task SeedDatabase()
+{
+    using(var scope = app.Services.CreateScope())
+    {
+        var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
+        await dbInitializer.InitializeAsync();
+    }
+}

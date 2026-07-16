@@ -9,7 +9,6 @@
     var processing = inactive;
     var shipped = inactive;
     var cancelled = inactive;
-    var refunded = inactive;
 
     switch (status)
     {
@@ -18,7 +17,6 @@
         case "processing": processing = active; break;
         case "shipped": shipped = active; break;
         case "cancelled": cancelled = active; break;
-        case "refunded": refunded = active; break;
         default: all = active; break;
     }
     
@@ -42,7 +40,6 @@
                 <a class="@processing" asp-controller="Order" asp-action="Index" asp-route-status="processing">Processing</a>
                 <a class="@shipped" asp-controller="Order" asp-action="Index" asp-route-status="shipped">Shipped</a>
                 <a class="@cancelled" asp-controller="Order" asp-action="Index" asp-route-status="cancelled">Cancelled</a>
-                <a class="@refunded" asp-controller="Order" asp-action="Index" asp-route-status="refunded">Refunded</a>
             </div>
         </div>
         <div class="table-responsive p-3">
